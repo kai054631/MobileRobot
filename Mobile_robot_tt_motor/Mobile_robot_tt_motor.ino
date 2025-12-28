@@ -1,4 +1,4 @@
-
+//done updated
 //Bt setup
 #include <SoftwareSerial.h>
 SoftwareSerial btSerial(12, 11);  // RX, TX
