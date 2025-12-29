@@ -28,10 +28,11 @@ float val;
 int Lcount_val=0;
 int Rcount_val=0;
 float Lrps=0,Rrps=0;
+int PPR=20;
 bool led_state=true;
 volatile int gnDuration1 = 0; // Left count
 volatile int gnDuration2 = 0; // Right count
-
+float error1;
 void set_L_motor(int speed1) {
   if (speed1 > 0) {
     digitalWrite(dirL1, LOW);
@@ -170,11 +171,13 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  set_R_motor(50);
-  set_L_motor(50);
+  set_R_motor(0);
+  set_L_motor(40);
   Serial.print(Lrps);
   Serial.print("  ");
-  Serial.print(Rrps);
+  //Serial.print(Rrps);
+  //Serial.print("  ");
+  Serial.print(error1);
   Serial.println("  ");
   delay(200);
 }
@@ -190,9 +193,11 @@ ISR(TIMER1_COMPA_vect)
   Lrps = Lrps*10.0;   // 1/0.1 = 10
   Lcount_val = 0;             // Reset counter 1.
 
-  Rrps = Rcount_val/20.0;  // Estimate rotation speed in rps for wheel 2.
+  Rrps = (Rcount_val/PPR);  // Estimate rotation speed in rps for wheel 2.
   Rrps = Rrps*10.0;   // 1/0.1 = 10  
   Rcount_val = 0;
+  int setval=5;
+  error1=setval-Lrps;
 }
 void Lcount()
 {
