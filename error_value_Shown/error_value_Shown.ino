@@ -196,8 +196,8 @@ ISR(TIMER1_COMPA_vect)
   Rrps = (Rcount_val/PPR);  // Estimate rotation speed in rps for wheel 2.
   Rrps = Rrps*10.0;   // 1/0.1 = 10  
   Rcount_val = 0;
-  int setval=5;
-  error1=setval-Lrps;
+  int setval=2;
+  error1=setval-Rrps;
 }
 void Lcount()
 {

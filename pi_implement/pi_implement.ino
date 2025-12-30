@@ -21,26 +21,33 @@ int distance;
 #define trigR 4
 #define echoR 3
 
-float speed1 = 0,speed2=0, max_speed = 80;
+int speed1 = 0,speed2=0, max_speed = 80;
 float val;
 
 //encoder Setup
-int Lcount_val=0;
-int Rcount_val=0;
+float Lcount_val=0, Rcount_val=0;
 float Lrps=0,Rrps=0;
+float PPR=20.0;
 bool led_state=true;
-volatile int gnDuration1 = 0; // Left count
-volatile int gnDuration2 = 0; // Right count
-
+float fsetval=2.5;
+float error1,errorSum=0.0,error1_old;
+float fpidOut;
+float Kp=1.0,Ki=0.0;
 void set_L_motor(int speed1) {
   if (speed1 > 0) {
     digitalWrite(dirL1, LOW);
     digitalWrite(dirL2, HIGH);
+    if(speed1>255){
+      speed1=255;
+    }
     analogWrite(L_speedcontrol, speed1);
   }else
   {
     digitalWrite(dirL1, HIGH);
     digitalWrite(dirL2, LOW);
+    if(speed1<-255){
+      speed1=-255;
+    }
     analogWrite(L_speedcontrol, -speed1);
   }
 }
@@ -134,7 +141,7 @@ void Ultrasonic(float speed) {
 void setup() {
   // put your setup code here, to run once:
   //Serial Setup
-  Serial.begin(19200);
+  Serial.begin(9600);
   //Bt setup
   btSerial.begin(9600);
   btSerial.println("BT ready! give the speed to run");
@@ -156,27 +163,34 @@ void setup() {
   //encoder setup
   pinMode(2, INPUT_PULLUP);     // To connect to output of wheel encoder 1.
   pinMode(3, INPUT_PULLUP);     // To connect to output of wheel encoder 2.
-  attachInterrupt(digitalPinToInterrupt(2), Lcount, RISING); 
-  attachInterrupt(digitalPinToInterrupt(3), Rcount, RISING);
+  attachInterrupt(digitalPinToInterrupt(3), Lcount, RISING); 
+  attachInterrupt(digitalPinToInterrupt(2), Rcount, RISING);
   noInterrupts();
   TCCR1A = 0;                 // Reset entire TCCR1A to 0 
   TCCR1B = 0;                 // Reset entire TCCR1B to 0 
   TCCR1B |= B00000100;        // prescaler set to 256
   TIMSK1 |= B00000010;        //Set OCIE1A to 1 so we enable compare match A 
-  OCR1A = 6250;             //Finally we set compare register A to this value   
+  OCR1A = 12500;             //Finally we set compare register A to this value   
   interrupts();
 }
 
-
 void loop() {
   // put your main code here, to run repeatedly:
-  set_R_motor(map(0,0,0,128));
-  //set_L_motor(50);
+  set_R_motor(speed1);
+  Serial.print(-5);
+  Serial.print("  ");
   Serial.print(Lrps);
   Serial.print("  ");
-  Serial.print(Rrps);
-  Serial.println("  ");
-  delay(200);
+  Serial.print(fsetval);
+  Serial.print("  ");
+  Serial.print(error1);
+  Serial.print("  ");
+  Serial.print(speed1);
+  Serial.print(" ");
+  Serial.print(fpidOut);
+  Serial.println(5);
+  delay(100);
+  
 }
 ISR(TIMER1_COMPA_vect)
 {
@@ -191,8 +205,16 @@ ISR(TIMER1_COMPA_vect)
   Lcount_val = 0;             // Reset counter 1.
 
   Rrps = Rcount_val/20.0;  // Estimate rotation speed in rps for wheel 2.
-  Rrps = Rrps*10.0;   // 1/0.1 = 10  
+  Rrps = Rrps*5.0;   // 1/0.1 = 10  
   Rcount_val = 0;
+
+
+  error1=fsetval-Lrps;
+  //errorSum=(Ki*error1)+errorSum;
+  fpidOut = Kp*error1;//+errorSum;
+  speed1= PPR*fpidOut;
+  //error1_old=error1;
+  set_L_motor(fpidOut);
 }
 void Lcount()
 {
