@@ -1,7 +1,7 @@
 #include <DHT11.h>
 
 const int LDR = A0;    // LDR SENSOR CONNECT TO A0
-const int sensor = 6;  //DHT 11 SENSOR CONNECT TO PIN 6
+const int sensor = 2;  //DHT 11 SENSOR CONNECT TO PIN 6
 const int relay = 7;   //RELAY CONNECT TO PIN 7
 DHT11 dht11(sensor);
 float light_Val = 0.0;
