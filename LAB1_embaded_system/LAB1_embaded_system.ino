@@ -76,9 +76,6 @@ void loop() {
     } else {
       Serial.println(DHT11::getErrorString(result));
     }
-
-
-
     printnow = false;
   }
 }
