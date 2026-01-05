@@ -1,4 +1,4 @@
-Cybertron meeting
+Cybertron meeting(2/1/2025)
 add barrier behind belt
 suction cup(yoyo do research on motor and cup, Jiaxin mention got some one in bilibili said motor burn when using,suspect the motor is for water pump instead of profesional air pump)
 
@@ -12,3 +12,5 @@ swerve drive update	- done design on the wheel hub but still no idea on turning 
 next week physical meeting, junior suggest the time.
 
 next time before meeting need to ask them ready to present 
+
+Cybertron meeting(2/1/2025)
