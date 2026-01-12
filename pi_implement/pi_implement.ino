@@ -19,26 +19,15 @@ bool led_state = true;
 //encoder Setup
 volatile long Lcount_val = 0;
 float Lrps = 0.0, errorL = 0.0, errorLSum = 0.0, error_oldL = 0.0, fpidLOut = 0.0;
-float LKp = 60;
-float LKi = 10;
-float LKd = 0.1;
-
-/*
-28    42
-0.02  2
-0.8   0.1 
-*/
+float LKp = 30.0;
+float LKi = 2.20;
+float LKd = 0.0;
 
 volatile long Rcount_val = 0;
 float Rrps = 0.0, errorR = 0.0, errorRSum = 0.0, error_oldR = 0.0, fpidROut = 0.0;
-float RKp = 60.0;
-float RKi = 10.0;
-float RKd = 0.1;
-/*
-28    35
-0.02  3.5
-0.8   0.0 
-*/
+float RKp = 30.0;
+float RKi = 2.20;
+float RKd = 0.0;
 
 float fsetval = 1.0;
 void set_L_motor(float speed) {
@@ -47,10 +36,10 @@ void set_L_motor(float speed) {
     digitalWrite(dirL1, LOW);
     digitalWrite(dirL2, HIGH);
     analogWrite(L_speedcontrol, pwm_val);
-  } else if (speed < 0) {
+  } else if (speed < -15) {
     digitalWrite(dirL1, HIGH);
     digitalWrite(dirL2, LOW);
-    analogWrite(L_speedcontrol, pwm_val);
+    analogWrite(L_speedcontrol, -pwm_val);
   } else {
     digitalWrite(dirL1, LOW);
     digitalWrite(dirL2, LOW);
@@ -63,17 +52,41 @@ void set_R_motor(float speed) {
     digitalWrite(dirR1, LOW);
     digitalWrite(dirR2, HIGH);
     analogWrite(R_speedcontrol, pwm_val);
-  } else if (speed <0) {
+  } else if (speed <-15) {
     digitalWrite(dirR1, HIGH);
     digitalWrite(dirR2, LOW);
-    analogWrite(R_speedcontrol, pwm_val);
+    analogWrite(R_speedcontrol, -pwm_val);
   } else {
     digitalWrite(dirR1, LOW);
     digitalWrite(dirR2, LOW);
     analogWrite(R_speedcontrol, 0);
   }
 }
-
+void Bluetooth_Control()  {
+  if (Serial.available() > 0) {
+    char type = Serial.read(); 
+    if (type == 'W') {
+      set_L_motor(255);
+      set_R_motor(255);
+      delay(1000);
+    } else if (type == 'A') {
+      set_L_motor(100);
+      set_R_motor(255);
+      delay(1000);
+    } else if (type == 'P') {
+      set_L_motor(255);
+      set_R_motor(100);
+      delay(1000);
+    } else if (type == 'S') {
+      set_L_motor(-255);
+      set_R_motor(-255);
+      delay(1000);
+    } else{
+      set_L_motor(0);
+      set_R_motor(0);
+    }
+  }
+}
 void pid_tune() {
   if (Serial.available() > 0) {
     char type = Serial.read();        // Read the letter (P, I, D, S, or F)
@@ -121,7 +134,11 @@ void pid_tune() {
   Serial.print("  ");
   Serial.print(Lrps);
   Serial.print("  ");
+  Serial.print(fpidLOut);
+  Serial.print("  ");
   Serial.print(Rrps);  // Scaled for better viewing
+  Serial.print("  ");
+  Serial.print(errorRSum); 
   Serial.print(" ");
   Serial.println(5);
   //FKUNGMS
@@ -160,7 +177,7 @@ void setup() {
   TCCR1B = 0;           // Reset entire TCCR1B to 0
   TCCR1B |= B00000100;  // prescaler set to 256
   TIMSK1 |= B00000010;  //Set OCIE1A to 1 so we enable compare match A
-  OCR1A = 6250;         //Finally we set compare register A to this value
+  OCR1A = 6250*2;         //Finally we set compare register A to this value
   interrupts();
 }
 
@@ -172,34 +189,31 @@ ISR(TIMER1_COMPA_vect) {
   led_state = !led_state;       //Invert LED state
   digitalWrite(13, led_state);  //Write new state to the LED on pin D5, this is to generate a pulse.
 
-  Lrps = (Lcount_val / 96.0) * 10;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
+  Lrps = (Lcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
   Lcount_val = 0;                   // Reset counter 1.
   errorL = fsetval - Lrps;
-  if(errorL >= 1.33){
-    errorL = errorL;
-  }
-  else {
-    errorL = 0;
-  }
   errorLSum = errorLSum + errorL;
-  float dErrorL = (errorL - error_oldL) / 0.1;
+  float dErrorL = (errorL - error_oldL) / 0.2;
   fpidLOut = (LKp * errorL) + (LKi * errorLSum) + (LKd * dErrorL);
-  set_L_motor(fpidLOut);
+  if(fpidLOut>255){
+    set_L_motor(255);
+  }else{
+    set_L_motor(fpidLOut);
+  }
+  //set_L_motor(fpidLOut);
   error_oldL = errorL;
 
-  Rrps = (Rcount_val / 96.0) * 10;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
+  Rrps = (Rcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
   Rcount_val = 0;                   // Reset counter 1.
   errorR = fsetval - Rrps;
-  if(errorR >= 1.33){
-    errorR = errorR;
-  }
-  else {
-    errorR = 0;
-  }
   errorRSum = errorRSum + errorR;
-  float dErrorR = (errorR - error_oldR) / 0.1;
+  float dErrorR = (errorR - error_oldR) / 0.2;
   fpidROut = (RKp * errorR) + (RKi * errorRSum) + (RKd * dErrorR);
-  set_R_motor(fpidROut);
+  if(fpidROut>255){
+    set_R_motor(255);
+  }else{
+    set_R_motor(fpidROut);
+  }
   error_oldR = errorR;
 }
 void Lcount() {
