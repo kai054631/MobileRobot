@@ -60,17 +60,17 @@ float RKd = 0.0;
 
 float getdistance(int trig_pin, int echo_pin){
   digitalWrite(trig_pin, LOW);
-  delay(2);
+  delay(4);
   digitalWrite(trig_pin, HIGH);
-  delay(10);
+  delay(20);
   digitalWrite(trig_pin, LOW);
-
   float timing = pulseIn(echo_pin, HIGH);
-  float distance = (timing * 0.034) / 2;
-  if(distance > 150){
+  // Serial.print("Timing = ");
+  // Serial.println(timing);
+  float distance = (timing * 0.034) ;
+  if(distance > 350 || distance < 1.0){
     distance = previous_R_value;
   }
-
   return distance;
 }
 
@@ -239,14 +239,21 @@ void setup() {
   TCCR1B = 0;           // Reset entire TCCR1B to 0
   TCCR1B |= B00000100;  // prescaler set to 256
   TIMSK1 |= B00000010;  //Set OCIE1A to 1 so we enable compare match A
-  OCR1A = 6250 * 2;     //Finally we set compare register A to this value
+  OCR1A = 6250*2;     //Finally we set compare register A to this value
   interrupts();
 }
 
 void loop() {
+  interrupts();
   setmotor_Command();
+  noInterrupts();
   float R_sensor = getdistance(trig_pin1, echo_pin1);
   previous_R_value = R_sensor;
+  Serial.print("Lrps :");
+  Serial.println(Lrps);
+  Serial.print("Rrps: ");
+  Serial.println(Rrps);
+  
   Serial.println(R_sensor);
   if (R_sensor > 20) {  //move forward
     setmotor(2, 2);
