@@ -1,5 +1,5 @@
 //L298N setup
-#define dirL1 10
+#define dirL1 4
 #define dirL2 9
 
 #define dirR1 8
@@ -13,10 +13,10 @@ long time_taken_R;
 int distance;
 #define trig_pin1 10
 #define echo_pin1 11
-
-
+#define trig_pin2 12
+#define echo_pin2 13
+int situation = 0;
 bool led_state = true;
-float previous_R_value;
 
 //encoder Setup
 volatile long Lcount_val = 0;
@@ -30,35 +30,41 @@ float Rrps = 0.0, errorR = 0.0, errorRSum = 0.0, error_oldR = 0.0, fpidROut = 0.
 float RKp = 30.0;
 float RKi = 2.20;
 float RKd = 0.0;
+//ultrasonic sensor setup
+float L_sensor, R_sensor;
+float previous_R_value, previous_L_value;
 
-// void direction_value(){
-//       //ultrasonic code
-//       //--- 1. READ SENSOR ---
-//     float L_sensor = getdistance(trig_pin2, echo_pin2);
-//     float R_sensor = getdistance(trig_pin1, echo_pin1);
-//     if(L_sensor < 20 && R_sensor < 20){ //reverse then turn right
-//       situation = 1;
-//     }else if(L_sensor < 20 && R_sensor > 20){ // rotate 90 degree to right
-//       situation = 2;
-//     }else if(L_sensor > 20 && R_sensor < 20){ //rotate 90 degree to left
-//       situation = 3;
-//     }else if(L_sensor > 20 && R_sensor > 20){ //move forward
-//       situation = 4;
-//     }
+void ultrasonic_sensor() {
+  //ultrasonic code
+  //--- 1. READ SENSOR ---
+  previous_L_value = L_sensor;
+  previous_R_value = R_sensor;
+  L_sensor = getdistance(trig_pin2, echo_pin2, 'L');
+  R_sensor = getdistance(trig_pin1, echo_pin1, 'R');
+}
+void automode() {
+  if (L_sensor < 20 && R_sensor < 20) {  //reverse then turn right
+    situation = 1;
+  } else if (L_sensor < 20 && R_sensor > 20) {  // rotate 90 degree to right
+    situation = 2;
+  } else if (L_sensor > 20 && R_sensor < 20) {  //rotate 90 degree to left
+    situation = 3;
+  } else if (L_sensor > 20 && R_sensor > 20) {  //move forward
+    situation = 4;
+  }
+  switch (situation) {
+    case 1:
+      setmotor(-1, -2);
+    case 2:
+      setmotor(1, -1);
+    case 3:
+      setmotor(-1, 1);
+    case 4:
+      setmotor(1, 1);
+  }
+}
 
-//     switch(situation){
-//       case 1:
-
-//       case 2:
-
-//       case 3:
-
-//       case 4:
-//         setmotor(2, 2);
-//     }
-// }
-
-float getdistance(int trig_pin, int echo_pin){
+float getdistance(int trig_pin, int echo_pin, char D) {
   digitalWrite(trig_pin, LOW);
   delay(4);
   digitalWrite(trig_pin, HIGH);
@@ -67,24 +73,31 @@ float getdistance(int trig_pin, int echo_pin){
   float timing = pulseIn(echo_pin, HIGH);
   // Serial.print("Timing = ");
   // Serial.println(timing);
-  float distance = (timing * 0.034) ;
-  if(distance > 350 || distance < 1.0){
-    distance = previous_R_value;
+  float distance = (timing * 0.034);
+  if(D == 'R'){
+    if (distance > 350 || distance < 1.0) {
+      distance = previous_R_value;
+    }  
+  }else if(D == 'L'){
+    if (distance > 350 || distance < 1.0) {
+      distance = previous_L_value;
+    } 
   }
+
   return distance;
 }
 
-float fsetvalL = 1.0, fsetvalR = 1.0;
+float fsetvalL = 0.0, fsetvalR = 0.0;
 void set_L_motor(float speed) {
-  float pwm_val = abs((float)speed);
+  //float pwm_val = abs((float)speed);
   if (speed > 0) {
     digitalWrite(dirL1, LOW);
     digitalWrite(dirL2, HIGH);
-    analogWrite(L_speedcontrol, pwm_val);
-  } else if (speed < -15) {
+    analogWrite(L_speedcontrol, speed);
+  } else if (speed < -40) {
     digitalWrite(dirL1, HIGH);
     digitalWrite(dirL2, LOW);
-    analogWrite(L_speedcontrol, -pwm_val);
+    analogWrite(L_speedcontrol, -speed);
   } else {
     digitalWrite(dirL1, LOW);
     digitalWrite(dirL2, LOW);
@@ -92,15 +105,15 @@ void set_L_motor(float speed) {
   }
 }
 void set_R_motor(float speed) {
-  float pwm_val = abs((float)speed);
+  //float pwm_val = abs((float)speed);
   if (speed > 0) {
     digitalWrite(dirR1, LOW);
     digitalWrite(dirR2, HIGH);
-    analogWrite(R_speedcontrol, pwm_val);
-  } else if (speed < -15) {
+    analogWrite(R_speedcontrol, speed);
+  } else if (speed < -40) {
     digitalWrite(dirR1, HIGH);
     digitalWrite(dirR2, LOW);
-    analogWrite(R_speedcontrol, -pwm_val);
+    analogWrite(R_speedcontrol, -speed);
   } else {
     digitalWrite(dirR1, LOW);
     digitalWrite(dirR2, LOW);
@@ -109,28 +122,30 @@ void set_R_motor(float speed) {
 }
 void Bluetooth_Control() {
   if (Serial.available() > 0) {
-    char type = Serial.read();
-    if (type == 'W') {
-      set_L_motor(255);
-      set_R_motor(255);
-      delay(1000);
-    } else if (type == 'A') {
-      set_L_motor(100);
-      set_R_motor(255);
-      delay(1000);
-    } else if (type == 'P') {
-      set_L_motor(255);
-      set_R_motor(100);
-      delay(1000);
-    } else if (type == 'S') {
-      set_L_motor(-255);
-      set_R_motor(-255);
-      delay(1000);
-    } else {
-      set_L_motor(0);
-      set_R_motor(0);
+    // ultrasonic_sensor();
+    // if (L_sensor > 20 && R_sensor > 20) {
+      char type = Serial.read();
+      //if(type == '0'){state = 0} and else if(type == '1'){state = 1}, switch(state) case '0': continue if, else statement for receive data, case '1': automode();
+      Serial.println(type);
+      if (type == 'F') {
+        setmotor(3, 3);
+      } else if (type == 'B') {
+        setmotor(-1, -1);
+      } else if (type == 'L') {
+        setmotor(0, 3);
+      } else if (type == 'R') {
+        setmotor(3, 0);
+      } else if (type == 'S') {
+        setmotor(0, 0);
+      } 
+      // else if (type == 'A'){ //addition code for add automode 
+      //   automode();
+      // }
     }
-  }
+    // else{
+    //   automode();//run automatic mode since got obstacle nearby
+    // }
+  // }
 }
 void pid_tune() {
   if (Serial.available() > 0) {
@@ -196,7 +211,7 @@ void setmotor_Command() {
       fsetvalL = val;
     } else if (type == 'R') {
       fsetvalR = val;
-    }else if (type == 'B') {
+    } else if (type == 'B') {
       fsetvalL = val;
       fsetvalR = val;
     }
@@ -239,56 +254,90 @@ void setup() {
   TCCR1B = 0;           // Reset entire TCCR1B to 0
   TCCR1B |= B00000100;  // prescaler set to 256
   TIMSK1 |= B00000010;  //Set OCIE1A to 1 so we enable compare match A
-  OCR1A = 6250*2;     //Finally we set compare register A to this value
+  OCR1A = 6250 * 2;     //Finally we set compare register A to this value
   interrupts();
 }
 
 void loop() {
   interrupts();
-  setmotor_Command();
-  noInterrupts();
-  float R_sensor = getdistance(trig_pin1, echo_pin1);
-  previous_R_value = R_sensor;
-  Serial.print("Lrps :");
-  Serial.println(Lrps);
-  Serial.print("Rrps: ");
-  Serial.println(Rrps);
-  
-  Serial.println(R_sensor);
-  if (R_sensor > 20) {  //move forward
-    setmotor(2, 2);
-  }
-  else {
-    setmotor(0, 0);
-  }
+  Bluetooth_Control();
+  //ultrasonic_sensor(); to read the ultrasonic value, since automode function will not call ultrasonic to get the new value
+  //automode(); for testing first;
+  Serial.print(" ");
+  Serial.print(Lrps);
+  Serial.print(" ");
+  Serial.print(Rrps);
+  Serial.print(" ");
+  Serial.print(errorL);
+  Serial.print(" ");
+  Serial.print(" ");
+  Serial.print(fsetvalR);
+  Serial.print(" ");
+  Serial.print(fpidLOut);
+  Serial.print(" ");
+  Serial.println(fpidROut);
+
+  // noInterrupts();
+  // float R_sensor = getdistance(trig_pin1, echo_pin1);
+  // previous_R_value = R_sensor;
+  // Serial.print("Lrps :");
+  // Serial.println(Lrps);
+  // Serial.print("Rrps: ");
+  // Serial.println(Rrps);
+
+  // Serial.println(R_sensor);
+  // if (R_sensor > 20) {  //move forward
+  //   setmotor(2, 2);
+  // } else {
+  //   setmotor(0, 0);
+  // }
 }
 ISR(TIMER1_COMPA_vect) {
   TCNT1 = 0;                    //First, set the timer back to 0 so it resets for next interrupt
   led_state = !led_state;       //Invert LED state
   digitalWrite(13, led_state);  //Write new state to the LED on pin D5, this is to generate a pulse.
-
-  Lrps = (Lcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
-  Lcount_val = 0;                  // Reset counter 1.
+  if (fsetvalL >= 0) {
+    Lrps = (Lcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
+    Lcount_val = 0;
+  } else {
+    Lrps = -(Lcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
+    Lcount_val = 0;
+  }
+  // Reset counter 1.
   errorL = fsetvalL - Lrps;
   errorLSum = errorLSum + errorL;
   float dErrorL = (errorL - error_oldL) / 0.2;
   fpidLOut = (LKp * errorL) + (LKi * errorLSum) + (LKd * dErrorL);
   if (fpidLOut > 255) {
-    set_L_motor(255);
+    fpidLOut = 255;
+    set_L_motor(fpidLOut);
   } else {
     set_L_motor(fpidLOut);
   }
   //set_L_motor(fpidLOut);
   error_oldL = errorL;
 
-  Rrps = (Rcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
-  Rcount_val = 0;                  // Reset counter 1.
+
+  if (fsetvalR >= 0) {
+    Rrps = (Rcount_val / 96.0) * 5;
+    Rcount_val = 0;
+  } else {
+    Rrps = -(Rcount_val / 96.0) * 5;
+    Rcount_val = 0;
+  }
   errorR = fsetvalR - Rrps;
   errorRSum = errorRSum + errorR;
   float dErrorR = (errorR - error_oldR) / 0.2;
   fpidROut = (RKp * errorR) + (RKi * errorRSum) + (RKd * dErrorR);
   if (fpidROut > 255) {
-    set_R_motor(255);
+    fpidROut = 255;
+    set_R_motor(fpidROut);
+  } else {
+    set_R_motor(fpidROut);
+  }
+  if (fpidROut < -255) {
+    fpidROut = -255;
+    set_R_motor(fpidROut);
   } else {
     set_R_motor(fpidROut);
   }

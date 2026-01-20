@@ -10,20 +10,41 @@ uRTCLib rtc(0x68);
 uEEPROMLib eeprom(0x57);
 //date data array
 int timedata[6] = { 0, 0, 0, 0, 0, 0 };
-unsigned int pos=0;;
+unsigned int pos = 0;
+int state = 0;
+const int butpin = 3;
+const int ledpin = 7;
 struct LogEntry {
   int date[6];
   float temp;
   float humidity;
 };
-
-bool loggingActive = true;
-unsigned int startPos = 0; // Tracks where we began today
+int val = 0;
+bool loggingActive = false;
+unsigned int startPos = 0;  // Tracks where we began today
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);  //1bit=10µs
   URTCLIB_WIRE.begin();
-  //rtc.set(0, 16, 23, 2, 15, 1, 26);//first time date settings
+
+  pinMode(butpin, INPUT_PULLUP);
+  pinMode(ledpin, OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(butpin), butPress, FALLING);
+  digitalWrite(ledpin, LOW);
+}
+
+void butPress() {
+  state = 1;
+
+
+  if (state = 0) {
+    val = val;
+  } else if (state = 1) {
+    val++;
+    delay(200);
+  }
+
+  
 }
 float getHumidity() {  //get humidity value from dht22
   float h = dht22.getHumidity();
@@ -43,7 +64,7 @@ void getTime(int* dataArray) {  //get time and date value from rtc modules
   dataArray[5] = rtc.second();
 }
 void printData(int date[6], float temp, float humidity) {  // print time and date data
-  for (int i = 0; i < 3; i++) {//print out all date data
+  for (int i = 0; i < 3; i++) {                            //print out all date data
     Serial.print(date[i]);
     if (i < 2) {
       Serial.print("/");
@@ -51,7 +72,7 @@ void printData(int date[6], float temp, float humidity) {  // print time and dat
       Serial.print(";");
     }
   }
-  for (int i = 3; i < 6; i++) { //print out time data
+  for (int i = 3; i < 6; i++) {  //print out time data
     Serial.print(date[i]);
     if (i < 5) {
       Serial.print(":");
@@ -63,9 +84,9 @@ void printData(int date[6], float temp, float humidity) {  // print time and dat
   Serial.print(".");
   Serial.println(humidity);
 }
-void saveData(int date[6], float temp, float humidity) { //save data to eeprom
+void saveData(int date[6], float temp, float humidity) {  //save data to eeprom
   LogEntry entry;
-  for(int i=0; i<6; i++) {
+  for (int i = 0; i < 6; i++) {
     entry.date[i] = date[i];
   }
   entry.temp = temp;
@@ -73,30 +94,38 @@ void saveData(int date[6], float temp, float humidity) { //save data to eeprom
   eeprom.eeprom_write(pos, (unsigned char*)&entry, sizeof(LogEntry));
   pos += sizeof(LogEntry);
 }
-void dumpData() { // put all data in to host
-  Serial.println("--- RETRIEVING STORED DATA ---");
+void dumpData() {  // put all data in to host
+  Serial.println("Date,Time,Temperature(C),Humidity(%)");
   for (unsigned int i = startPos; i < pos; i += sizeof(LogEntry)) {
     LogEntry readEntry;
     eeprom.eeprom_read(i, (unsigned char*)&readEntry, sizeof(LogEntry));
-    Serial.print("Addr: "); Serial.print(i); Serial.print(" | ");
+    Serial.print("Addr: ");
+    Serial.print(i);
+    Serial.print(" | ");
     printData(readEntry.date, readEntry.temp, readEntry.humidity);
   }
   Serial.println("--- END OF DATA ---");
-  while(1);
+  while (1)
+    ;
 }
 void loop() {
-  if (Serial.available() > 0) {
-    loggingActive = false;//stop logging
-    while(Serial.available()) Serial.read();
-    dumpData();//print out data
+  if (val <= 1) {
+    digitalWrite(ledpin, HIGH);
+    loggingActive = true;
+  } else if (val >= 2) {
+    Serial.println("val");
+    loggingActive = false;
+    digitalWrite(ledpin, LOW);
+    dumpData();
   }
-  if (loggingActive) {//print data every 10 sec
+  if (loggingActive) {  //print data every 5 sec
     getTime(timedata);
     float t = getTemptreture();
     float h = getHumidity();
-    Serial.print("Saving to Address: "); Serial.println(pos);//print which address saved
+    Serial.print("Saving to Address: ");
+    Serial.println(pos);  //print which address saved
     printData(timedata, t, h);
     saveData(timedata, t, h);
-    delay(10000); 
+    delay(5000);
   }
 }
