@@ -43,24 +43,41 @@ void ultrasonic_sensor() {
   R_sensor = getdistance(trig_pin1, echo_pin1, 'R');
 }
 void automode() {
+  ultrasonic_sensor();
   if (L_sensor < 20 && R_sensor < 20) {  //reverse then turn right
     situation = 1;
-  } else if (L_sensor < 20 && R_sensor > 20) {  // rotate 90 degree to right
+  } else if (L_sensor < 20 && R_sensor >= 20) {  // rotate 90 degree to right
     situation = 2;
-  } else if (L_sensor > 20 && R_sensor < 20) {  //rotate 90 degree to left
+  } else if (L_sensor >= 20 && R_sensor < 20) {  //rotate 90 degree to left
     situation = 3;
-  } else if (L_sensor > 20 && R_sensor > 20) {  //move forward
+  } else if (L_sensor >= 20 && R_sensor >= 20) {  //move forward
     situation = 4;
   }
-  switch (situation) {
-    case 1:
-      setmotor(-1, -2);
-    case 2:
-      setmotor(1, -1);
-    case 3:
-      setmotor(-1, 1);
-    case 4:
-      setmotor(1, 1);
+  //switch (situation) {
+  if (situation == 1) {  //case 1:
+    setmotor(0, 0);
+    delay(10);
+    setmotor(-2, -3);
+    Serial.print(" ");
+    Serial.print(" test 1 ");
+  } else if (situation == 2) {  //case 2:
+    setmotor(0, 0);
+    delay(10);
+    setmotor(2, -2);
+    Serial.print(" ");
+    Serial.print(" test 2 ");
+  } else if (situation == 3) {  //case 3:
+    setmotor(0, 0);
+    delay(10);
+    setmotor(-2, 2);
+    Serial.print(" ");
+    Serial.print(" test 3 ");
+  } else if (situation == 4) {  //case 4:
+    setmotor(0, 0);
+    delay(10);
+    setmotor(2, 2);
+    Serial.print(" ");
+    Serial.print(" test 4 ");
   }
 }
 
@@ -74,15 +91,15 @@ float getdistance(int trig_pin, int echo_pin, char D) {
   // Serial.print("Timing = ");
   // Serial.println(timing);
   float distance = (timing * 0.034);
-  if(D == 'R'){
-    if (distance > 350 || distance < 1.0) {
-      distance = previous_R_value;
-    }  
-  }else if(D == 'L'){
-    if (distance > 350 || distance < 1.0) {
-      distance = previous_L_value;
-    } 
-  }
+  // if (D == 'R') {
+  //   if (distance > 350 || distance < 1.0) {
+  //     distance = previous_R_value;
+  //   }
+  // } else if (D == 'L') {
+  //   if (distance > 350 || distance < 1.0) {
+  //     distance = previous_L_value;
+  //   }
+  //}
 
   return distance;
 }
@@ -124,27 +141,26 @@ void Bluetooth_Control() {
   if (Serial.available() > 0) {
     // ultrasonic_sensor();
     // if (L_sensor > 20 && R_sensor > 20) {
-      char type = Serial.read();
-      //if(type == '0'){state = 0} and else if(type == '1'){state = 1}, switch(state) case '0': continue if, else statement for receive data, case '1': automode();
-      Serial.println(type);
-      if (type == 'F') {
-        setmotor(3, 3);
-      } else if (type == 'B') {
-        setmotor(-1, -1);
-      } else if (type == 'L') {
-        setmotor(0, 3);
-      } else if (type == 'R') {
-        setmotor(3, 0);
-      } else if (type == 'S') {
-        setmotor(0, 0);
-      } 
-      // else if (type == 'A'){ //addition code for add automode 
-      //   automode();
-      // }
+    char type = Serial.read();
+    //if(type == '0'){state = 0} and else if(type == '1'){state = 1}, switch(state) case '0': continue if, else statement for receive data, case '1': automode();
+    Serial.println(type);
+    if (type == 'F') {
+      setmotor(3, 3);
+    } else if (type == 'B') {
+      setmotor(-1, -1);
+    } else if (type == 'L') {
+      setmotor(0, 3);
+    } else if (type == 'R') {
+      setmotor(3, 0);
+    } else if (type == 'S') {
+      setmotor(0, 0);
+    } else if (type == 'A') {  //addition code for add automode
+      automode();
     }
-    // else{
-    //   automode();//run automatic mode since got obstacle nearby
-    // }
+  }
+  // else{
+  //   automode();//run automatic mode since got obstacle nearby
+  // }
   // }
 }
 void pid_tune() {
@@ -240,12 +256,15 @@ void setup() {
   pinMode(R_speedcontrol, OUTPUT);
 
   //ultrasonic setup
-  // pinMode(trigR, OUTPUT);
-  // pinMode(echoR, INPUT);
-  pinMode(13, OUTPUT);
+  pinMode(trig_pin1, OUTPUT);
+  pinMode(echo_pin1, INPUT);
+  pinMode(trig_pin2, OUTPUT);
+  pinMode(echo_pin2, INPUT);
+
   //encoder setup
   pinMode(2, INPUT);  // To connect to output of wheel encoder 1.
   pinMode(3, INPUT);  // To connect to output of wheel encoder 2.
+
 
   attachInterrupt(digitalPinToInterrupt(3), Lcount, RISING);
   attachInterrupt(digitalPinToInterrupt(2), Rcount, RISING);
@@ -259,23 +278,16 @@ void setup() {
 }
 
 void loop() {
-  interrupts();
   Bluetooth_Control();
-  //ultrasonic_sensor(); to read the ultrasonic value, since automode function will not call ultrasonic to get the new value
-  //automode(); for testing first;
+  //ultrasonic_sensor();  // to read the ultrasonic value, since automode function will not call ultrasonic to get the new value
+  //automode();           // for testing first;
   Serial.print(" ");
-  Serial.print(Lrps);
+  Serial.print(L_sensor);
   Serial.print(" ");
-  Serial.print(Rrps);
+  Serial.print(R_sensor);
   Serial.print(" ");
-  Serial.print(errorL);
-  Serial.print(" ");
-  Serial.print(" ");
-  Serial.print(fsetvalR);
-  Serial.print(" ");
-  Serial.print(fpidLOut);
-  Serial.print(" ");
-  Serial.println(fpidROut);
+  Serial.println(situation);
+
 
   // noInterrupts();
   // float R_sensor = getdistance(trig_pin1, echo_pin1);
@@ -293,9 +305,9 @@ void loop() {
   // }
 }
 ISR(TIMER1_COMPA_vect) {
-  TCNT1 = 0;                    //First, set the timer back to 0 so it resets for next interrupt
-  led_state = !led_state;       //Invert LED state
-  digitalWrite(13, led_state);  //Write new state to the LED on pin D5, this is to generate a pulse.
+  TCNT1 = 0;               //First, set the timer back to 0 so it resets for next interrupt
+  led_state = !led_state;  //Invert LED state
+  // digitalWrite(13, led_state);  //Write new state to the LED on pin D5, this is to generate a pulse.
   if (fsetvalL >= 0) {
     Lrps = (Lcount_val / 96.0) * 5;  // Estimate rotation speed in rps for wheel Left       // 1/0.1 = 10
     Lcount_val = 0;
