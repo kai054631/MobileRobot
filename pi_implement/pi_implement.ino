@@ -61,24 +61,28 @@ void automode() {
       setmotor(0, 0);
       delay(time);
       setmotor(-2, 0);
+      delay(500);
       //Serial.print(" ");
       //Serial.println(" test 1 ");
     } else if (situation == 2) {  //case 2:
       setmotor(0, 0);
       delay(time);
       setmotor(3, 0);
+      delay(500);
       //Serial.print(" ");
       //Serial.println(" test 2 ");
     } else if (situation == 3) {  //case 3:
       setmotor(0, 0);
       delay(time);
       setmotor(0, 3);
+      delay(500);
       //Serial.print(" ");
       //Serial.println(" test 3 ");
     } else if (situation == 4) {  //case 4:
       setmotor(0, 0);
       delay(time);
       setmotor(3, 3);
+      delay(500);
       //Serial.print(" ");
       //Serial.println(" test 4 ");
     }
@@ -299,7 +303,12 @@ void loop() {
   Serial.print(" ");
   Serial.print(Rrps);
   Serial.print(" ");
-  Serial.println(automode_status);
+  Serial.print(automode_status);
+  Serial.print(" ");
+  Serial.print(L_sensor);
+  Serial.print(" ");
+  Serial.print(R_sensor);
+  Serial.println(" ");
 
 
   // noInterrupts();
@@ -330,12 +339,8 @@ ISR(TIMER1_COMPA_vect) {
   }
   // Reset counter 1.
   errorL = fsetvalL - Lrps;
-  if(errorLSum > 70){
-    errorLSum = 70;
-  }
-  else{
-     errorLSum = errorLSum + errorL; 
-  }
+  errorLSum = errorLSum + errorL; 
+  errorLSum = constrain(errorLSum, -70, 70); 
   float dErrorL = (errorL - error_oldL) / 0.2;
   fpidLOut = (LKp * errorL) + (LKi * errorLSum) + (LKd * dErrorL);
   if (fpidLOut > 255) {
@@ -357,12 +362,7 @@ ISR(TIMER1_COMPA_vect) {
   }
   errorR = fsetvalR - Rrps;
   errorRSum = errorRSum + errorR;
-  if(errorRSum > 70){
-    errorRSum = 70;
-  }
-  else{
-     errorRSum = errorRSum + errorL; 
-  }
+  errorRSum = constrain(errorRSum, -70, 70); 
   float dErrorR = (errorR - error_oldR) / 0.2;
   fpidROut = (RKp * errorR) + (RKi * errorRSum) + (RKd * dErrorR);
   if (fpidROut > 255) {
