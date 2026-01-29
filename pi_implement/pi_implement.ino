@@ -33,6 +33,7 @@ float RKd = 0.0;
 //ultrasonic sensor setup
 float L_sensor, R_sensor;
 float previous_R_value, previous_L_value;
+bool automode_status = 0;
 
 void ultrasonic_sensor() {
   //ultrasonic code
@@ -43,41 +44,52 @@ void ultrasonic_sensor() {
   R_sensor = getdistance(trig_pin1, echo_pin1, 'R');
 }
 void automode() {
-  ultrasonic_sensor();
-  if (L_sensor < 20 && R_sensor < 20) {  //reverse then turn right
-    situation = 1;
-  } else if (L_sensor < 20 && R_sensor >= 20) {  // rotate 90 degree to right
-    situation = 2;
-  } else if (L_sensor >= 20 && R_sensor < 20) {  //rotate 90 degree to left
-    situation = 3;
-  } else if (L_sensor >= 20 && R_sensor >= 20) {  //move forward
-    situation = 4;
-  }
-  //switch (situation) {
-  if (situation == 1) {  //case 1:
-    setmotor(0, 0);
-    delay(10);
-    setmotor(-2, -3);
+  int time=300;
+  while (automode_status == 1) {
+    ultrasonic_sensor();
+    if (L_sensor < 50 && R_sensor < 50) {  //reverse then turn right
+      situation = 1;
+    } else if (L_sensor < 50 && R_sensor >= 50) {  // rotate 90 degree to right
+      situation = 2;
+    } else if (L_sensor >= 50 && R_sensor < 50) {  //rotate 90 degree to left
+      situation = 3;
+    } else if (L_sensor >= 50 && R_sensor >= 50) {  //move forward
+      situation = 4;
+    }
+    //switch (situation) {
+    if (situation == 1) {  //case 1:
+      setmotor(0, 0);
+      delay(time);
+      setmotor(-2, 0);
+      //Serial.print(" ");
+      //Serial.println(" test 1 ");
+    } else if (situation == 2) {  //case 2:
+      setmotor(0, 0);
+      delay(time);
+      setmotor(3, 0);
+      //Serial.print(" ");
+      //Serial.println(" test 2 ");
+    } else if (situation == 3) {  //case 3:
+      setmotor(0, 0);
+      delay(time);
+      setmotor(0, 3);
+      //Serial.print(" ");
+      //Serial.println(" test 3 ");
+    } else if (situation == 4) {  //case 4:
+      setmotor(0, 0);
+      delay(time);
+      setmotor(3, 3);
+      //Serial.print(" ");
+      //Serial.println(" test 4 ");
+    }
+    Serial.print(Lrps);
     Serial.print(" ");
-    Serial.print(" test 1 ");
-  } else if (situation == 2) {  //case 2:
-    setmotor(0, 0);
-    delay(10);
-    setmotor(2, -2);
-    Serial.print(" ");
-    Serial.print(" test 2 ");
-  } else if (situation == 3) {  //case 3:
-    setmotor(0, 0);
-    delay(10);
-    setmotor(-2, 2);
-    Serial.print(" ");
-    Serial.print(" test 3 ");
-  } else if (situation == 4) {  //case 4:
-    setmotor(0, 0);
-    delay(10);
-    setmotor(2, 2);
-    Serial.print(" ");
-    Serial.print(" test 4 ");
+    Serial.print(Rrps);
+    Serial.println(" ");
+    if (Serial.available() > 0) {
+      automode_status = 0;
+      Bluetooth_Control();
+    }
   }
 }
 
@@ -155,6 +167,7 @@ void Bluetooth_Control() {
     } else if (type == 'S') {
       setmotor(0, 0);
     } else if (type == 'A') {  //addition code for add automode
+      automode_status = 1;
       automode();
     }
   }
@@ -279,14 +292,14 @@ void setup() {
 
 void loop() {
   Bluetooth_Control();
-  //ultrasonic_sensor();  // to read the ultrasonic value, since automode function will not call ultrasonic to get the new value
+  ultrasonic_sensor();  // to read the ultrasonic value, since automode function will not call ultrasonic to get the new value
   //automode();           // for testing first;
   Serial.print(" ");
-  Serial.print(L_sensor);
+  Serial.print(Lrps);
   Serial.print(" ");
-  Serial.print(R_sensor);
+  Serial.print(Rrps);
   Serial.print(" ");
-  Serial.println(situation);
+  Serial.println(automode_status);
 
 
   // noInterrupts();
@@ -317,7 +330,12 @@ ISR(TIMER1_COMPA_vect) {
   }
   // Reset counter 1.
   errorL = fsetvalL - Lrps;
-  errorLSum = errorLSum + errorL;
+  if(errorLSum > 70){
+    errorLSum = 70;
+  }
+  else{
+     errorLSum = errorLSum + errorL; 
+  }
   float dErrorL = (errorL - error_oldL) / 0.2;
   fpidLOut = (LKp * errorL) + (LKi * errorLSum) + (LKd * dErrorL);
   if (fpidLOut > 255) {
@@ -339,6 +357,12 @@ ISR(TIMER1_COMPA_vect) {
   }
   errorR = fsetvalR - Rrps;
   errorRSum = errorRSum + errorR;
+  if(errorRSum > 70){
+    errorRSum = 70;
+  }
+  else{
+     errorRSum = errorRSum + errorL; 
+  }
   float dErrorR = (errorR - error_oldR) / 0.2;
   fpidROut = (RKp * errorR) + (RKi * errorRSum) + (RKd * dErrorR);
   if (fpidROut > 255) {
